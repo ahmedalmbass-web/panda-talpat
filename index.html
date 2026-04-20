@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panda Smart App | تطبيق طلبات باندا</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root { --primary: #c62828; --accent: #ffb300; --bg: #121212; --card-bg: rgba(255, 255, 255, 0.08); --text: #fff; }
+        .light-mode { --bg: #f5f5f5; --card-bg: #fff; --text: #333; }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; scroll-behavior: smooth; }
+        body { background: var(--bg); color: var(--text); padding-bottom: 100px; transition: 0.3s; }
+        
+        /* تعديل الهيدر ليكون أصغر */
+        header { background: #fff; padding: 0.5rem; text-align: center; position: fixed; width: 100%; top: 0; border-bottom: 1px solid #ddd; z-index: 1001; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); height: 50px; }
+        .logo { font-size: 1.2rem; font-weight: 900; color: var(--primary); flex: 1; }
+        .header-icons { padding: 0 15px; color: var(--primary); font-size: 1.1rem; cursor: pointer; }
+
+        /* شريط التنقل السريع - تم تنزيله قليلاً لضمان الرؤية */
+        .category-nav { 
+            position: fixed; top: 50px; width: 100%; background: var(--bg); 
+            overflow-x: auto; white-space: nowrap; padding: 10px; z-index: 1000;
+            border-bottom: 1px solid rgba(128,128,128,0.2); display: flex; gap: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .nav-item { 
+            background: var(--card-bg); padding: 6px 12px; border-radius: 20px; 
+            font-size: 0.8rem; cursor: pointer; border: 1px solid var(--primary); color: var(--text);
+            flex-shrink: 0;
+        }
+
+        /* زيادة الهامش العلوي للحاوية ليتناسب مع التعديلات الجديدة */
+        .container { max-width: 1200px; margin: 120px auto 40px; padding: 20px; }
+        
+        .status-tag { font-size: 0.65rem; padding: 1px 6px; border-radius: 4px; margin-right: 5px; vertical-align: middle; }
+        .open { background: #2e7d32; color: #fff; }
+        .closed { background: #c62828; color: #fff; }
+
+        .cart-footer {
+            position: fixed; bottom: 0; left: 0; width: 100%; background: #1a1a1a; 
+            padding: 15px 20px; border-top: 3px solid var(--accent); 
+            display: flex; justify-content: space-between; align-items: center; z-index: 2000; cursor: pointer;
+        }
+        .badge { background: var(--primary); color: white; border-radius: 50%; padding: 2px 7px; font-size: 0.7rem; position: absolute; top: -10px; right: 20px; }
+
+        .modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); backdrop-filter: blur(5px); }
+        .modal-content { background: var(--bg); margin: 10% auto; padding: 25px; border-radius: 20px; width: 90%; max-width: 450px; border: 1px solid var(--accent); color: var(--text); }
+        
+        .cart-item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(128,128,128,0.2); }
+
+        .category-title { color: var(--accent); margin: 30px 0 15px; border-right: 6px solid var(--primary); padding-right: 15px; font-size: 1.5rem; background: rgba(198, 40, 40, 0.1); padding: 10px; }
+        .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
+        .card { background: var(--card-bg); border-radius: 15px; padding: 15px; border: 1px solid rgba(128,128,128,0.2); text-align: center; }
+        
+        .q-btn, .mini-q-btn { background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .q-btn { width: 35px; height: 35px; }
+        .mini-q-btn { width: 25px; height: 25px; background: var(--accent); color: #000; }
+
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 10px; border: 1px solid #444; background: #222; color: #fff; }
+        .action-btn { background: #25d366; color: white; border: none; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
+        
+        @media (max-width: 600px) { .menu-grid { grid-template-columns: 1fr 1fr; gap: 8px; } .item-name { font-size: 0.85rem; } }
+    </style>
+</head>
+<body id="main-body">
+
+<div id="cart-modal" class="modal">
+    <div class="modal-content">
+        <div style="display: flex; justify-content: space-between;">
+            <h3>سلة المشتريات 🛒</h3>
+            <i class="fas fa-times" onclick="toggleCartModal()" style="cursor: pointer;"></i>
+        </div>
+        <div id="cart-details" style="max-height: 300px; overflow-y: auto; margin: 20px 0;"></div>
+        <button class="action-btn" onclick="checkDataAndSend()">تأكيد وإرسال الطلب</button>
+    </div>
+</div>
+
+<div id="settings-modal" class="modal">
+    <div class="modal-content">
+        <h3>خياراتي ⚙️</h3>
+        <div style="margin: 20px 0; text-align: right;">
+            <button class="nav-item" onclick="toggleTheme()" style="width: 100%; margin-bottom: 10px;">تبديل المظهر (ليلي/نهاري)</button>
+            <hr><br>
+            <label>تعديل بيانات التوصيل:</label>
+            <input type="text" id="u-name" placeholder="الاسم الجديد">
+            <input type="text" id="u-addr" placeholder="العنوان الجديد">
+            <button class="action-btn" onclick="saveUser()">حفظ التعديلات</button>
+        </div>
+        <button onclick="document.getElementById('settings-modal').style.display='none'" style="background:none; border:none; color:var(--primary); width:100%;">إغلاق</button>
+    </div>
+</div>
+
+<header>
+    <div class="header-icons" onclick="document.getElementById('settings-modal').style.display='block'"><i class="fas fa-cog"></i></div>
+    <div class="logo">🐼 مطعم وحلويات باندا <span id="shop-status"></span></div>
+    <div style="width: 50px;"></div> 
+</header>
+
+<div class="category-nav" id="cat-nav"></div>
+
+<div class="container" id="menu-container"></div>
+
+<div class="cart-footer" onclick="toggleCartModal()">
+    <span id="cart-badge" class="badge">0</span>
+    <div class="cart-info">
+        <span class="total-label">إجمالي الطلب:</span>
+        <span class="total-amount"><span id="total">0</span> ريال</span>
+    </div>
+    <button class="send-order-btn" style="background:#25d366; color:white; border:none; padding:10px 20px; border-radius:10px; font-weight:bold;">عرض السلة <i class="fas fa-shopping-basket"></i></button>
+</div>
+
+<script>
+    const whatsappPhone = "967779409040";
+    let cart = [];
+
+    function checkStatus() {
+        const now = new Date();
+        const hour = now.getHours();
+        const statusDiv = document.getElementById('shop-status');
+        if(hour >= 10 && hour < 22) {
+            statusDiv.innerHTML = '<span class="status-tag open">مفتوح</span>';
+        } else {
+            statusDiv.innerHTML = '<span class="status-tag closed">مغلق</span>';
+        }
+    }
+
+    function toggleTheme() {
+        document.body.classList.toggle('light-mode');
+        localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+    }
+
+    function toggleCartModal() {
+        const modal = document.getElementById('cart-modal');
+        if(modal.style.display === 'block') modal.style.display = 'none';
+        else { renderCartDetails(); modal.style.display = 'block'; }
+    }
+
+    function renderCartDetails() {
+        const detailDiv = document.getElementById('cart-details');
+        if(cart.length === 0) { detailDiv.innerHTML = "السلة فارغة حالياً"; return; }
+        detailDiv.innerHTML = cart.map(item => `
+            <div class="cart-item-row">
+                <div>
+                    <div style="font-weight:bold; font-size:0.9rem;">${item.name} ${item.size ? '('+item.size+')' : ''}</div>
+                    <div style="color:var(--accent); font-size:0.8rem;">${item.price * item.quantity} ريال</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <button class="mini-q-btn" onclick="updateQuantity('${item.name}','${item.price}','${item.size}', -1)">-</button>
+                    <span>${item.quantity}</span>
+                    <button class="mini-q-btn" onclick="updateQuantity('${item.name}','${item.price}','${item.size}', 1)">+</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    const fullData = [
+        { cat: "🍔 البرجر", items: [{n:"برجر دجاج عادي", p:1400}, {n:"برجر دجاج دبل", p:1600}, {n:"برجر لحم عادي", p:1500}, {n:"برجر لحم دبل", p:1900}, {n:"برجر ماكس باندا", p:1900}, {n:"برجر سوبر باندا", p:2400}, {n:"وجبة برجر عائلي", p:3000}, {n:"وجبة برجر أطفال", p:1000}, {n:"كريسبي برجر", p:1600}, {n:"بوكس السعادة", p:5500}, {n:"ساندوتش ماكسيكو", p:1000}] },
+        { cat: "🔥 الزنجر", items: [{n:"ساندوتش زنجر باندا", p:1500}, {n:"طبق زنجر باندا", p:2000}, {n:"طبق زنجر جبن", p:2200}, {n:"وجبة زنجر برجر", p:3300}, {n:"سندوتشات زنجر برجر", p:1500}] },
+        { cat: "🍕 البيتزا (الأحجام)", items: [{n:"مارجريتا", s:{"صغير":1900, "وسط":2500, "كبير":3200}}, {n:"خضار", s:{"صغير":1900, "وسط":2500, "كبير":3100}}, {n:"دجاج", s:{"صغير":2100, "وسط":2700, "كبير":3300}}, {n:"لحم", s:{"صغير":2200, "وسط":2800, "كبير":3600}}, {n:"تونة", s:{"صغير":2100, "وسط":2700, "كبير":3300}}, {n:"لانشون", s:{"صغير":2300, "وسط":2900, "كبير":3600}}, {n:"نقانق", s:{"صغير":2100, "وسط":2700, "كبير":3300}}, {n:"مناقيش", s:{"صغير":2300, "وسط":2900, "كبير":3600}}, {n:"عش البلبل", s:{"صغير":2100, "وسط":2700, "كبير":3300}}, {n:"الفصول الأربعة", s:{"صغير":2300, "وسط":2900, "كبير":3800}}, {n:"تشاو", s:{"صغير":2400, "وسط":3300, "كبير":4400}}] },
+        { cat: "🌯 الفاهيتا", items: [{n:"ساندوتش فاهيتا عادي", p:1300}, {n:"ساندوتش فاهيتا مكسيكي", p:1400}, {n:"طبق فاهيتا عادي", p:1700}, {n:"طبق فاهيتا مكسيكي", p:2000}, {n:"وجبة ساندوتش فاهيتا", p:2700}, {n:"ساندوتش فاهيتا عربي", p:1000}] },
+        { cat: "🥐 الفطائر", items: [{n:"مجموع أجبان", p:1300}, {n:"دجاج مع الجبن", p:1500}, {n:"لحم مع الجبن", p:1500}, {n:"نقانق مع الجبن", p:1500}, {n:"تونة مع الجبن", p:1500}, {n:"لبنة زعتر", p:1000}, {n:"لبنة زيتون", p:1300}, {n:"لبنة عسل", p:1000}, {n:"لبنة صافي", p:1300}, {n:"فطائر نوتيلا", p:1300}, {n:"نوتيلا مع الجبن", p:1300}, {n:"فطائر باندا", p:1800}, {n:"سام دجاج", p:1600}, {n:"سام لحم", p:1600}] },
+        { cat: "🍗 قسم البروست (الأحجام)", items: [{n:"بروست عادي", s:{"حبة":4800, "نص":2400, "ربع":1200}}, {n:"بروست حراق", s:{"حبة":4800, "نص":2400, "ربع":1200}}, {n:"بروست كنتاكي", p:1500}, {n:"بروست وجبة طفل", p:1000}, {n:"تشيكن مسحب", p:1300}, {n:"أصابع موزريلا لستيكس", p:1500}, {n:"أصابع دجاج باندا", p:1500}, {n:"تشيكن فرايز عادي", p:1500}, {n:"تشيكن فرايز باندا", p:1800}, {n:"توست أجبان", p:1200}, {n:"توست بيض وأجبان", p:1500}, {n:"توست تشيكن دجاج", p:1500}] },
+        { cat: "🥙 الشاورما والشيبس", items: [{n:"ساندوتش شاورما رغيف", p:500}, {n:"ساندوتش شاورما عربي", p:800}, {n:"ساندوتش بان دائري", p:800}, {n:"ساندوتش بان طويل", p:800}, {n:"طبق شاورما", p:2000}, {n:"طبق شاورما عربي", p:2800}, {n:"فطيرة شاورما باندا", p:3400}, {n:"ساندوتش صاروخ", p:1500}, {n:"كريسبي رول", p:1500}, {n:"علبة صوص عادي", p:400}, {n:"صوص الهلبينو", p:400}, {n:"علبة صوص لهب التنين", p:500}, {n:"علبة ثوم", p:400}, {n:"صحن شبس عادي", p:500}, {n:"صحن شبس حار", p:500}, {n:"صحن شبس باندا", p:800}] },
+        { cat: "🍰 الحلويات", items: [{n:"تشيز كيك بأنواعه", p:500}, {n:"تريجليه", p:500}, {n:"ترند دبي باندا", p:1000}, {n:"كلير", p:500}, {n:"فورست", p:1000}, {n:"جاتوهات", p:1000}, {n:"بلح الشام", p:100}, {n:"عش البلبل لوتس", p:250}, {n:"مبرومه فستق", p:300}, {n:"كل واشكر", p:150}, {n:"معمول تمريه", p:100}, {n:"دونات", p:400}, {n:"بيتفور", p:100}, {n:"بقلاوات", p:1000}, {n:"صدف عنتابي", p:500}, {n:"زنود الست", p:100}, {n:"كنافه بالقشطه", p:800}, {n:"كنافه ملكي", p:1200}, {n:"كنافه نوتيلا", p:1000}, {n:"كنافه قشطه ومكسرات", p:1500}] },
+        { cat: "☕ القهوة الساخنة", items: [{n:"اسبريسو", p:800}, {n:"دبل اسبريسو", p:1200}, {n:"كابتشينو", p:800}, {n:"لاتيه باندا", p:1200}, {n:"كافي لاتيه", p:1000}, {n:"موكا تشينو", p:1500}, {n:"هوت شكليت", p:800}, {n:"هوت ميلك", p:600}, {n:"امريكانو", p:700}, {n:"اسبانيش لاتيه", p:1500}, {n:"روز لاتيه", p:1500}, {n:"نسكافيه بالحليب", p:700}, {n:"بلاك كافيه", p:500}, {n:"كراميل لاتيه", p:1500}, {n:"شاهي حليب", p:200}, {n:"شاهي احمر", p:100}, {n:"شاهي حليب عدني", p:400}, {n:"شاهي مغربي", p:300}, {n:"قهوة تركي", p:600}, {n:"قهوة عربي", p:600}, {n:"قهوة يمني", p:300}, {n:"كافي لاتيه ملكه", p:1200}, {n:"مكياتو", p:1000}, {n:"فلات وايت", p:1200}, {n:"كرتادو", p:1200}] },
+        { cat: "🥤 موهيتو", items: [{n:"موهيتو نكهات", p:1000}, {n:"صن شاين نكهات", p:1200}, {n:"ايس تي خوخ", p:1000}] },
+        { cat: "❄️ القهوة الباردة", items: [{n:"ايس امريكاتو", p:1200}, {n:"ايس لاتيه", p:1300}, {n:"ايس كرميل لاتيه", p:1500}, {n:"ايس موكا", p:1500}, {n:"ايس شوكلت", p:1200}, {n:"فرابتشينو شوكلاتة", p:1300}, {n:"فرابيه شوكلاتة", p:1200}, {n:"فرابتشينو كراميل", p:1300}, {n:"فرابيه كراميل", p:1200}, {n:"ايس سبانيش لاتيه", p:1500}, {n:"كركديه مثلج", p:600}, {n:"فرابتشينو مع نكهة", p:1400}, {n:"ايس روز لاتيه", p:1500}, {n:"ايس كافي بالدا", p:1500}] },
+        { cat: "🍹 كوكتيلات الباندا", items: [{n:"كوكتيل باندا", p:1000}, {n:"كوكتيل الوردة الحمراء", p:1000}, {n:"كوكتيل فيتامين سي", p:1000}, {n:"فخفخينا", p:1000}, {n:"طبقات باندا", p:1000}, {n:"كوكتيل برادايس", p:1200}, {n:"كوكتيل بيبي لوف", p:1200}, {n:"نبض القلب", p:1000}, {n:"ليلة خميس", p:1500}, {n:"عرائسي", p:1000}, {n:"سلطة فواكه", p:1500}, {n:"اسموذي", p:1500}] },
+        { cat: "🍎 العصائر", items: [{n:"عصير ليمون", p:200}, {n:"عصير ريلاكس", p:300}, {n:"عصير برتقال", p:500}, {n:"عصير برتقال كبس", p:1500}, {n:"عصير مانجا مركز", p:600}, {n:"عصير فراولة", p:600}, {n:"عصير فراولة بالحليب", p:700}, {n:"عصير مانجا بالحليب", p:500}, {n:"عصيركيوي", p:800}, {n:"عصير اناناس طبيعي", p:800}, {n:"عصير اناناس خلط", p:500}, {n:"عصير جزر", p:500}, {n:"عصير موز بالحليب", p:500}, {n:"عصير باباي", p:500}, {n:"عصير بطيخ", p:500}, {n:"عصير رمان", p:700}, {n:"عصير تفاح", p:600}, {n:"عصير افوكادو", p:1200}, {n:"عصير افوكادو مع فراولة", p:1500}, {n:"عصير افوكادو مع الكيوي", p:1500}, {n:"عصير شمام", p:500}, {n:"عصير جوافة", p:600}, {n:"سينالكو مشروب غازي", p:250}, {n:"فرغلي", p:800}, {n:"عصير مشكل عادي", p:500}, {n:"عصير مشكل فواكه", p:800}, {n:"عصير زنجبيل", p:500}, {n:"عصير موز تمر", p:500}, {n:"أصفهاني", p:1000}, {n:"هديل الحب", p:1000}, {n:"رمان مع العنب", p:800}, {n:"ليمون مع البقدونس", p:300}, {n:"دبة ماء", p:100}] },
+        { cat: "🥞 الكريب والوافل", items: [{n:"ترابل شوكليت", p:2000}, {n:"ماكس تشوكليت مع نكهة", p:2000}, {n:"موتشيلي", p:2500}, {n:"ميني بان كيك (8 قطع)", p:1700}, {n:"ميني بان كيك (12 قطعة)", p:2500}, {n:"ميني بان كيك (18 قطعة)", p:3500}, {n:"ميني بان كيك (24 قطعة)", p:5200}, {n:"بان كيك ترابل شوكليت", p:2000}, {n:"بان كيك نوتيلا", p:2300}, {n:"بان كيك لوتس", p:2000}, {n:"بان كيك بستاشيو", p:2500}, {n:"بان كيك اوريو", p:2300}, {n:"بان كيك كيندر", p:2500}, {n:"بان كيك مكس صوص", p:2500}, {n:"بان كيك شوكليت مع الفراولة", p:2300}, {n:"وافل نكهة", p:1500}] },
+        { cat: "🥛 الميلك شيك", items: [{n:"ميلك شيك شوكلاتة", p:1300}, {n:"ميلك شيك كراميل", p:1300}, {n:"ميلك شيك أوريو", p:1300}, {n:"ميلك شيك فراولة", p:1300}] },
+        { cat: "🐼 خلطات باندا", items: [{n:"ملكي", p:2000}, {n:"أوفكادو ملكي", p:2000}, {n:"سبرايس باندا", p:1500}, {n:"البرنس باندا", p:1500}, {n:"فراولة بالصوص طبق", p:1500}, {n:"سكريم بالفراولة", p:1000}, {n:"سكريم بالموز والفراولة", p:1000}, {n:"بمبوضه خلطه", p:1000}] }
+    ];
+
+    function getItemKey(name, size) { return `${name}-${size}`; }
+
+    function renderMenu() {
+        const container = document.getElementById('menu-container');
+        const nav = document.getElementById('cat-nav');
+        container.innerHTML = ""; nav.innerHTML = "";
+        fullData.forEach((section, index) => {
+            const secId = `sec-${index}`;
+            nav.innerHTML += `<div class="nav-item" onclick="window.scrollTo(0, document.getElementById('${secId}').offsetTop - 110)">${section.cat}</div>`;
+            container.innerHTML += `<h2 class="category-title" id="${secId}">${section.cat}</h2>`;
+            let grid = document.createElement('div');
+            grid.className = 'menu-grid';
+            section.items.forEach(item => {
+                let card = `<div class="card"><span class="item-name">${item.n}</span>`;
+                if(item.s) {
+                    card += `<div class="size-box">`;
+                    Object.entries(item.s).forEach(([sz, pr]) => {
+                        const key = getItemKey(item.n, sz);
+                        card += `<div class="size-row"><span>${sz} (${pr})</span><div class="size-controls"><button class="mini-q-btn" onclick="updateQuantity('${item.n}','${pr}','${sz}', -1)">-</button><span class="mini-q-count" id="count-${key}">0</span><button class="mini-q-btn" onclick="updateQuantity('${item.n}','${pr}','${sz}', 1)">+</button></div></div>`;
+                    });
+                    card += `</div>`;
+                } else {
+                    const key = getItemKey(item.n, "");
+                    card += `<div><div class="item-price">${item.p} ريال</div><div class="quantity-controls" style="display:flex; justify-content:center; align-items:center; gap:10px; margin-top:10px;"><button class="q-btn" onclick="updateQuantity('${item.n}','${item.p}','', -1)">-</button><span class="q-count" id="count-${key}">0</span><button class="q-btn" onclick="updateQuantity('${item.n}','${item.p}','', 1)">+</button></div></div>`;
+                }
+                card += `</div>`; grid.innerHTML += card;
+            });
+            container.appendChild(grid);
+        });
+    }
+
+    function updateQuantity(name, price, size, change) {
+        const key = getItemKey(name, size);
+        let item = cart.find(i => i.key === key);
+        if (item) { item.quantity += change; if (item.quantity <= 0) cart = cart.filter(i => i.key !== key); }
+        else if (change > 0) { cart.push({ key, name, price: parseInt(price), size, quantity: 1 }); }
+        updateUI(name, size);
+    }
+
+    function updateUI(name, size) {
+        const key = getItemKey(name, size);
+        const item = cart.find(i => i.key === key);
+        const qty = item ? item.quantity : 0;
+        document.querySelectorAll(`[id="count-${key}"]`).forEach(el => el.innerText = qty);
+        const total = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+        document.getElementById('total').innerText = total;
+        document.getElementById('cart-badge').innerText = cart.reduce((s, i) => s + i.quantity, 0);
+        if(document.getElementById('cart-modal').style.display === 'block') renderCartDetails();
+    }
+
+    function saveUser() {
+        const n = document.getElementById('u-name').value;
+        const a = document.getElementById('u-addr').value;
+        if(n && a) {
+            localStorage.setItem('p_name', n); localStorage.setItem('p_addr', a);
+            alert("تم حفظ البيانات بنجاح ✅"); document.getElementById('settings-modal').style.display = 'none';
+        } else { alert("يرجى ملء الحقول"); }
+    }
+
+    function checkDataAndSend() {
+        if(cart.length === 0) { alert("السلة فارغة!"); return; }
+        const sN = localStorage.getItem('p_name');
+        if(!sN) { document.getElementById('cart-modal').style.display = 'none'; document.getElementById('settings-modal').style.display = 'block'; alert("يرجى إدخال بيانات التوصيل أولاً"); }
+        else { alert("شكراً لك، سيتم تحويلك الآن إلى واتساب لتأكيد الطلب 🐼"); sendToWhatsapp(); }
+    }
+
+    function sendToWhatsapp() {
+        const sN = localStorage.getItem('p_name');
+        const sA = localStorage.getItem('p_addr');
+        let itemsList = cart.map(i => `- ${i.quantity}x ${i.name} ${i.size ? '('+i.size+')' : ''}: ${i.price * i.quantity} ريال`).join('\n');
+        const msg = `*طلب جديد من تطبيق باندا* 🐼\n\n*الزبون:* ${sN}\n*العنوان:* ${sA}\n\n*الأصناف:*\n${itemsList}\n\n*الإجمالي:* ${document.getElementById('total').innerText} ريال`;
+        window.open(`https://wa.me/${whatsappPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+
+    window.onload = () => {
+        if(localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
+        checkStatus(); renderMenu();
+        document.getElementById('u-name').value = localStorage.getItem('p_name') || "";
+        document.getElementById('u-addr').value = localStorage.getItem('p_addr') || "";
+    };
+</script>
+
+<footer style="text-align: center; padding: 40px; background: rgba(0,0,0,0.9); border-top: 2px solid var(--primary); margin-top: 50px;">
+    <p>إب - الدائري - جوار بنك التضامن</p>
+    <p style="color: var(--accent); margin-top: 10px;">تطوير: المهندس أحمد 2026</p>
+</footer>
+
+</body>
+</html>
